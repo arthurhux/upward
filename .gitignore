@@ -1,0 +1,14 @@
+.build/
+dist/
+.DS_Store
+artifacts/
+browser/.bridge/
+browser/node_modules/
+browser/dist/
+
+# Local credentials and deployment metadata
+.env
+.env.*
+!.env.example
+.vercel/
+*.log

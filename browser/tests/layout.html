@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Upward layout review</title>
+<style>
+body { margin: 0; padding: 20px; color: #eee; background: #202020; font: 14px/1.5 system-ui; }
+nav { display:flex; flex-wrap:wrap; gap:8px; position:sticky; top:0; background:#202020; padding:12px 0; z-index:2; }
+button,select { font:inherit; padding:8px 12px; } button { cursor:pointer; }
+.frame { overflow:hidden; border:1px solid #777; } iframe { border:0; transform-origin:top left; display:block; }
+pre { white-space:pre-wrap; } h1 {font-size:22px;}
+</style></head><body><h1>Upward layout review</h1><p>Development fixture: real app, one viewport at a time to bound rendering cost. Does not ship in dist.</p>
+<nav><select id="size" aria-label="Review viewport"></select><select id="dataset" aria-label="Test data"><option value="live">Live game</option><option value="demo">Demo data</option><option value="worst">Worst case</option><option value="empty">Empty</option><option value="one">One</option><option value="midnight">Midnight</option><option value="crimson">Crimson</option><option value="ember">Ember</option><option value="solar">Solar</option><option value="lime">Lime</option><option value="verdant">Verdant</option><option value="tidal">Tidal</option><option value="cobalt">Cobalt</option><option value="violet">Violet</option><option value="prism">Prism</option></select><button id="welcome">Welcome</button><button id="settings">Settings</button><button id="pause">Paused run</button><button id="all">Run layout checks</button></nav>
+<p id="status" role="status">Loading…</p><div id="view"></div><pre id="results"></pre>
+<script type="module">
+const cases = [
+ {name:'Minimum · 320 × 568',w:320,h:568}, {name:'Phone · 390 × 844',w:390,h:844},
+ {name:'Tablet · 768 × 900',w:768,h:900}, {name:'Desktop · 1280 × 900',w:1280,h:900},
+ {name:'Wide · 1920 × 1080',w:1920,h:1080}, {name:'200% zoom equivalent · 640 × 450',w:640,h:450},
+ {name:'RTL + German expansion · 390 × 844',w:390,h:844,rtl:true}, {name:'200% text · 640 × 900',w:640,h:900,enlarged:true}
+]
+const size=document.querySelector('#size'), status=document.querySelector('#status'), results=document.querySelector('#results')
+cases.forEach((item,i)=>size.add(new Option(item.name,i)))
+let frame, current
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms))
+const button=(doc,name)=>[...doc.querySelectorAll('button')].find(el=>el.getAttribute('aria-label')===name||el.textContent.trim()===name)
+async function load(index) {
+ status.textContent='Loading…'
+ current=cases[index]; size.value=index
+ const scale=Math.min(1,(innerWidth-44)/current.w,700/current.h)
+ const wrap=document.createElement('div');wrap.className='frame';wrap.style.width=`${current.w*scale}px`;wrap.style.height=`${current.h*scale}px`
+ frame=document.createElement('iframe');frame.title=current.name;frame.width=current.w;frame.height=current.h;frame.style.transform=`scale(${scale})`
+ const ready=new Promise(resolve=>frame.onload=resolve);frame.src=document.querySelector('#dataset').value === 'live' ? '/' : `/?lab=stress&embedded=1&data=${document.querySelector('#dataset').value}`;wrap.append(frame);document.querySelector('#view').replaceChildren(wrap)
+ await ready
+ const doc=frame.contentDocument
+ if(current.rtl){doc.documentElement.dir='rtl';doc.documentElement.lang='de'}
+ if(current.enlarged)doc.documentElement.style.fontSize='200%'
+ frame.contentWindow.dispatchEvent(new Event('resize'))
+ for(let tries=0;tries<30&&!doc.querySelector('main');tries++)await wait(100)
+ await doc.fonts.ready;await wait(1050)
+ status.textContent=current.name
+ return doc
+}
+function translate(doc) {
+ const translations={'Find your balance.':'Finde dein Gleichgewicht.','A few small adjustments. A better feeling.':'Ein paar kleine Anpassungen für ein besseres Spielgefühl.','Your MacBook is connected':'Dein MacBook ist verbunden','Steering sensitivity':'Empfindlichkeit der Lenkbewegung','Forward lift':'Sprunghöhe beim Vorwärtsneigen','Reverse left & right':'Links und rechts vertauschen','Reverse forward tilt':'Vorwärtsneigung umkehren','A little sound':'Sanfte Klänge einschalten','Gentler effects':'Weniger Bewegungseffekte','All set':'Einstellungen übernehmen'}
+ const walker=doc.createTreeWalker(doc.body,NodeFilter.SHOW_TEXT);let node
+ while((node=walker.nextNode())){const key=node.textContent.trim();if(translations[key])node.textContent=translations[key]}
+}
+async function settings(){const doc=frame.contentDocument;button(doc,'Settings')?.click();await wait(150);if(current.rtl)translate(doc)}
+async function pause(){const doc=frame.contentDocument;button(doc,'Close')?.click();button(doc,'Keyboard controls')?.click();button(doc,'Play')?.click();await wait(200);button(doc,'Pause · Space')?.click();await wait(100)}
+function measure(state){
+ const doc=frame.contentDocument,dialog=doc.querySelector('[role="dialog"]')
+ const selectors=dialog?['[role="dialog"]','.settings-bottom','.settings-bottom button','[data-slot="dialog-close"]']:['.game-header .wordmark','.game-header button','.welcome','.welcome .play-button','.control-dock button','.run-overlay','.run-overlay .play-button']
+ const findings=selectors.flatMap(selector=>[...doc.querySelectorAll(selector)].flatMap(el=>{const r=el.getBoundingClientRect();if(!r.width||!r.height)return[];return r.left< -1||r.right>current.w+1||r.top< -1||r.bottom>current.h+1?[{selector,label:el.getAttribute('aria-label'),bounds:[r.x,r.y,r.width,r.height].map(Math.round)}]:[]}))
+ const toast=doc.querySelector('.notice-toast'),action=doc.querySelector('.run-overlay .play-button')
+ if(toast&&action&&!dialog){const a=action.getBoundingClientRect(),b=toast.getBoundingClientRect();if(a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top)findings.push({selector:'notice covers primary action',bounds:[b.x,b.y,b.width,b.height].map(Math.round)})}
+ const body=doc.querySelector('.settings-body'),heading=doc.querySelector(dialog?'[role="dialog"] h2':'h1,h2')
+ for(const el of doc.querySelectorAll('.welcome .play-button,.run-overlay .play-button')) {
+   const r=el.getBoundingClientRect(),parent=el.closest('.welcome,.run-overlay'),clip=parent.getBoundingClientRect()
+   if(r.top<clip.top-1||r.bottom>clip.bottom+1||r.left<clip.left-1||r.right>clip.right+1)findings.push({selector:'primary action clipped by panel',bounds:[r.x,r.y,r.width,r.height].map(Math.round)})
+ }
+ return {case:current.name,state,findings,viewportOverflow:doc.documentElement.scrollWidth>current.w,scrollRegion:body?{height:body.clientHeight,content:body.scrollHeight}:undefined,tracking:heading?frame.contentWindow.getComputedStyle(heading).letterSpacing:undefined}
+}
+size.onchange=()=>load(Number(size.value))
+document.querySelector('#dataset').onchange=()=>load(Number(size.value))
+document.querySelector('#welcome').onclick=()=>load(Number(size.value))
+document.querySelector('#settings').onclick=settings
+document.querySelector('#pause').onclick=pause
+document.querySelector('#all').onclick=async()=>{
+ document.querySelectorAll('button,select').forEach(el=>el.disabled=true)
+ const report=[]
+ try{for(let i=0;i<cases.length;i++){await load(i);report.push(measure('welcome'));await settings();report.push(measure('settings'));await pause();report.push(measure('paused'));results.textContent=JSON.stringify(report,null,2)}status.textContent=`Complete: ${report.length} state/viewport checks. ${report.filter(r=>r.findings.length||r.viewportOverflow).length} with findings.`}
+ catch(error){status.textContent=error.message}
+ finally{document.querySelectorAll('button,select').forEach(el=>el.disabled=false)}
+}
+await load(0)
+</script></body></html>
