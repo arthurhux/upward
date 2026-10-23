@@ -1,5 +1,42 @@
 # Upward
 
+A playful experiment for testing your Mac’s accelerometer and gyroscope: tilt your
+MacBook to steer a little red ball, lean forward to jump higher, and climb through
+a quiet night sky.
+
+[Play the browser demo](https://upward-dun.vercel.app) · [Browser setup](browser/README.md)
+
+## Why this experiment?
+
+Moving the computer becomes the controller. Upward turns raw motion readings into
+something you can feel: the accelerometer provides a gravity reference, while the
+gyroscope tracks rotation. Together they estimate tilt so you can explore sensor
+response, calibration, and how small movements affect the game.
+
+MacBook tilt has been tested on an M5 MacBook Pro. It uses undocumented AppleSPU
+sensor reports, so availability depends on your Mac and macOS version. This is a
+hands-on experiment rather than a hardware diagnostic or a guarantee of support
+for every Mac.
+
+The online demo supports keyboard and touch. To try the accelerometer and
+gyroscope, clone the project and run the local launcher; a hosted browser page
+cannot access these Mac sensors directly. Sensor readings stay on your Mac.
+
+## Try tilt controls on your Mac
+
+Requires Node.js 24 and Xcode or the Swift command-line tools.
+
+```sh
+git clone https://github.com/arthurhux/upward.git
+cd upward
+./'Play Upward in Browser.command'
+```
+
+The launcher installs browser dependencies, builds the local sensor helper, and
+opens the game at `http://127.0.0.1:8787`. Choose MacBook tilt in Settings, press
+Play, and hold a comfortable position during calibration. Tilt sideways to steer
+and lean forward for extra lift. Press **C** whenever you want to recenter.
+
 ## Browser game
 
 The polished browser version lives in **browser/**. Double-click

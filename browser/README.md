@@ -1,5 +1,10 @@
 # Upward — browser playground
 
+A playful way to experiment with your Mac’s accelerometer and gyroscope. Tilt
+controls run through the local sensor helper; the [online demo](https://upward-dun.vercel.app)
+works with keyboard and touch. Tested on an M5 MacBook Pro; sensor availability
+varies by Mac and macOS version.
+
 A production-built React + TypeScript + Canvas game with real shadcn/ui controls.
 Pip, a little ball with curious eyes, enters from below the viewport, bounces on spring-like strings, and
 climbs as you balance your MacBook or use keyboard/touch controls.
@@ -73,7 +78,7 @@ The static game supports keyboard and touch without an account or server.
 cannot directly read the undocumented AppleSPU sensors. The static production
 bundle does not include the macOS executable. To ship MacBook tilt broadly, the
 helper would be distributed separately; this repository includes a local launcher
-and a built helper for this Mac. The hosted build uses keyboard and touch; sensor connections are attempted only on loopback hosts.
+that builds the helper on your Mac. The hosted build uses keyboard and touch; sensor connections are attempted only on loopback hosts.
 
 ## Interface review
 
